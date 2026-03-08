@@ -9,9 +9,16 @@ import type {
   PositionInsert,
   PositionUpdate,
   RankingRow,
+  TelegramFeedbackInsert,
+  TelegramFeedbackRow,
+  TelegramFeedbackUpdate,
+  TelegramUserStateInsert,
+  TelegramUserStateRow,
+  TelegramUserStateUpdate,
   TradeInsert,
   TradeRow
 } from "@/lib/supabase/types";
+import type { TelegramFeedbackStatus } from "@/types";
 
 type Client = SupabaseClient;
 
@@ -25,6 +32,9 @@ const RANKING_COLUMNS =
   "id,epoch_id,agent_id,rank,pnl_sol,sharpe_ratio,max_drawdown,trade_efficiency,composite_score,prize_sol,prize_tx_signature";
 const POSITION_COLUMNS =
   "id,agent_id,token_mint,token_symbol,amount,avg_buy_price,current_price,unrealized_pnl_sol,updated_at";
+const TELEGRAM_FEEDBACK_COLUMNS =
+  "id,telegram_user_id,telegram_username,telegram_chat_id,source,category,message,agent_name,wallet_address,linked_agent_id,status,admin_message_id,created_at,updated_at";
+const TELEGRAM_STATE_COLUMNS = "telegram_user_id,telegram_chat_id,state,draft_category,updated_at";
 
 export async function getActiveEpoch(client: Client): Promise<EpochRow | null> {
   const { data, error } = await client
@@ -101,6 +111,22 @@ export async function getAgentById(client: Client, agentId: string): Promise<Age
     .from("agents")
     .select(AGENT_COLUMNS)
     .eq("id", agentId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as AgentRow | null;
+}
+
+export async function getAgentByName(client: Client, agentName: string): Promise<AgentRow | null> {
+  const { data, error } = await client
+    .from("agents")
+    .select(AGENT_COLUMNS)
+    .ilike("name", agentName)
+    .order("registered_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (error) {
@@ -351,9 +377,139 @@ export async function listPendingPrizeDistribution(client: Client): Promise<Rank
   return (data ?? []) as RankingRow[];
 }
 
+export async function getTelegramFeedbackById(
+  client: Client,
+  feedbackId: string
+): Promise<TelegramFeedbackRow | null> {
+  const { data, error } = await client
+    .from("telegram_feedback")
+    .select(TELEGRAM_FEEDBACK_COLUMNS)
+    .eq("id", feedbackId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as TelegramFeedbackRow | null;
+}
+
+export async function createTelegramFeedback(
+  client: Client,
+  payload: TelegramFeedbackInsert
+): Promise<TelegramFeedbackRow> {
+  const { data, error } = await client
+    .from("telegram_feedback")
+    .insert(payload)
+    .select(TELEGRAM_FEEDBACK_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as TelegramFeedbackRow;
+}
+
+export async function updateTelegramFeedback(
+  client: Client,
+  feedbackId: string,
+  payload: TelegramFeedbackUpdate
+): Promise<TelegramFeedbackRow> {
+  const { data, error } = await client
+    .from("telegram_feedback")
+    .update(payload)
+    .eq("id", feedbackId)
+    .select(TELEGRAM_FEEDBACK_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as TelegramFeedbackRow;
+}
+
+export async function updateTelegramFeedbackStatus(
+  client: Client,
+  feedbackId: string,
+  status: TelegramFeedbackStatus
+): Promise<TelegramFeedbackRow> {
+  return updateTelegramFeedback(client, feedbackId, { status });
+}
+
+export async function getTelegramUserState(
+  client: Client,
+  telegramUserId: string
+): Promise<TelegramUserStateRow | null> {
+  const { data, error } = await client
+    .from("telegram_user_state")
+    .select(TELEGRAM_STATE_COLUMNS)
+    .eq("telegram_user_id", telegramUserId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as TelegramUserStateRow | null;
+}
+
+export async function upsertTelegramUserState(
+  client: Client,
+  payload: TelegramUserStateInsert | (TelegramUserStateInsert & TelegramUserStateUpdate)
+): Promise<TelegramUserStateRow> {
+  const { data, error } = await client
+    .from("telegram_user_state")
+    .upsert(payload, { onConflict: "telegram_user_id" })
+    .select(TELEGRAM_STATE_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as TelegramUserStateRow;
+}
+
+export async function clearTelegramUserState(
+  client: Client,
+  telegramUserId: string,
+  telegramChatId: string
+): Promise<TelegramUserStateRow> {
+  return upsertTelegramUserState(client, {
+    telegram_user_id: telegramUserId,
+    telegram_chat_id: telegramChatId,
+    state: "idle",
+    draft_category: null
+  });
+}
+
+export async function matchAgentByWalletOrName(
+  client: Client,
+  input: { walletAddress?: string | null; agentName?: string | null }
+): Promise<AgentRow | null> {
+  const walletAddress = input.walletAddress?.trim();
+  if (walletAddress) {
+    const byWallet = await getAgentByWallet(client, walletAddress);
+    if (byWallet) {
+      return byWallet;
+    }
+  }
+
+  const agentName = input.agentName?.trim();
+  if (!agentName) {
+    return null;
+  }
+
+  return getAgentByName(client, agentName);
+}
+
 export type QueryRows = {
   AgentRow: AgentRow;
   EpochRow: EpochRow;
   RankingRow: RankingRow;
+  TelegramFeedbackRow: TelegramFeedbackRow;
+  TelegramUserStateRow: TelegramUserStateRow;
   TradeRow: TradeRow;
 };

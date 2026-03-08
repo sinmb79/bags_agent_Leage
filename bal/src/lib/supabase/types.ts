@@ -1,3 +1,10 @@
+import type {
+  TelegramBotState,
+  TelegramFeedbackCategory,
+  TelegramFeedbackSource,
+  TelegramFeedbackStatus
+} from "@/types";
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface AgentRow {
@@ -85,6 +92,46 @@ export interface PositionRow {
 export type PositionInsert = Omit<PositionRow, "id" | "updated_at">;
 export type PositionUpdate = Partial<Omit<PositionRow, "id" | "agent_id" | "token_mint" | "updated_at">>;
 
+export interface TelegramFeedbackRow {
+  id: string;
+  telegram_user_id: string;
+  telegram_username: string | null;
+  telegram_chat_id: string;
+  source: TelegramFeedbackSource;
+  category: TelegramFeedbackCategory;
+  message: string;
+  agent_name: string | null;
+  wallet_address: string | null;
+  linked_agent_id: string | null;
+  status: TelegramFeedbackStatus;
+  admin_message_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type TelegramFeedbackInsert = Omit<
+  TelegramFeedbackRow,
+  "id" | "status" | "admin_message_id" | "created_at" | "updated_at"
+> & {
+  status?: TelegramFeedbackStatus;
+  admin_message_id?: string | null;
+};
+
+export type TelegramFeedbackUpdate = Partial<
+  Omit<TelegramFeedbackRow, "id" | "telegram_user_id" | "telegram_chat_id" | "created_at">
+>;
+
+export interface TelegramUserStateRow {
+  telegram_user_id: string;
+  telegram_chat_id: string;
+  state: TelegramBotState;
+  draft_category: string | null;
+  updated_at: string;
+}
+
+export type TelegramUserStateInsert = Omit<TelegramUserStateRow, "updated_at">;
+export type TelegramUserStateUpdate = Partial<Omit<TelegramUserStateRow, "telegram_user_id" | "updated_at">>;
+
 export interface Database {
   public: {
     Tables: {
@@ -116,6 +163,18 @@ export interface Database {
         Row: PositionRow;
         Insert: PositionInsert;
         Update: PositionUpdate;
+        Relationships: [];
+      };
+      telegram_feedback: {
+        Row: TelegramFeedbackRow;
+        Insert: TelegramFeedbackInsert;
+        Update: TelegramFeedbackUpdate;
+        Relationships: [];
+      };
+      telegram_user_state: {
+        Row: TelegramUserStateRow;
+        Insert: TelegramUserStateInsert;
+        Update: TelegramUserStateUpdate;
         Relationships: [];
       };
     };

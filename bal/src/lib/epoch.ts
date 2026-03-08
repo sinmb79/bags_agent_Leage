@@ -66,25 +66,41 @@ export async function finalizeEpoch(client: Client, epochId: string) {
   const sortedRankings = [...rankings].sort(
     (left, right) => Number(right.composite_score ?? 0) - Number(left.composite_score ?? 0)
   );
+  const placements: Array<{
+    agentId: string;
+    rank: number;
+    pnlSol: number;
+    prizeSol: number;
+  }> = [];
 
   for (const [index, ranking] of sortedRankings.entries()) {
     const prize =
       index === 0 ? prizePool.first : index === 1 ? prizePool.second : index === 2 ? prizePool.third : 0;
+    const roundedPrize = Number(prize.toFixed(8));
 
     await upsertRanking(client, epochId, ranking.agent_id, {
       rank: index + 1,
-      prize_sol: Number(prize.toFixed(8))
+      prize_sol: roundedPrize
+    });
+
+    placements.push({
+      agentId: ranking.agent_id,
+      rank: index + 1,
+      pnlSol: Number(ranking.pnl_sol ?? 0),
+      prizeSol: roundedPrize
     });
   }
 
-  await updateEpoch(client, epochId, {
+  const completedEpoch = await updateEpoch(client, epochId, {
     total_fees_sol: Number(totalFees.toFixed(8)),
     prize_pool_sol: Number(prizePool.total.toFixed(8)),
     status: "completed"
   });
 
   return {
+    epoch: completedEpoch,
     rankings: sortedRankings,
+    placements,
     prizePool
   };
 }

@@ -1,5 +1,9 @@
 export type EpochStatus = "active" | "calculating" | "completed";
 export type TradeAction = "buy" | "sell";
+export type TelegramFeedbackSource = "bot_dm" | "group_redirect";
+export type TelegramFeedbackCategory = "bug" | "idea" | "question" | "report" | "other";
+export type TelegramFeedbackStatus = "new" | "acknowledged" | "closed";
+export type TelegramBotState = "idle" | "awaiting_category" | "awaiting_message";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -104,3 +108,25 @@ export interface PositionSnapshot {
   unrealizedPnlSol: number;
 }
 
+export interface TelegramFeedback {
+  id: string;
+  telegramUserId: string;
+  telegramUsername: string | null;
+  telegramChatId: string;
+  source: TelegramFeedbackSource;
+  category: TelegramFeedbackCategory;
+  message: string;
+  agentName: string | null;
+  walletAddress: string | null;
+  linkedAgentId: string | null;
+  status: TelegramFeedbackStatus;
+  adminMessageId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TelegramFaqEntry {
+  slug: string;
+  question: string;
+  answer: string;
+}

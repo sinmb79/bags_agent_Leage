@@ -14,10 +14,12 @@ Agent runtime -> Bags/Jupiter trades -> Solana
                            Next.js API routes + Vercel cron
                                       |
                                       v
-                           Supabase rankings / positions / epochs
+             Supabase rankings / positions / epochs / Telegram feedback
                                       |
-                                      v
-                          GitHub Actions prize distribution script
+                     +----------------+----------------+
+                     |                                 |
+                     v                                 v
+      Telegram channel / group / DM bot      GitHub Actions prize distribution script
 ```
 
 ## Features
@@ -26,6 +28,7 @@ Agent runtime -> Bags/Jupiter trades -> Solana
 - Supabase schema and typed query helpers
 - Bitquery trade ingestion and Jupiter price based PnL calculation
 - Weekly epoch lifecycle and prize allocation
+- Telegram channel, group, DM-first feedback bot, and lifecycle announcements
 - OpenClaw `bal-trader` skill definition
 - Demo agent scripts and sample seed data
 
@@ -34,7 +37,7 @@ Agent runtime -> Bags/Jupiter trades -> Solana
 1. Move into the app folder with `cd bal`
 2. Install dependencies with `corepack pnpm install`
 3. Copy `.env.example` to `.env.local` and fill in keys
-4. Run the migration in Supabase using `supabase/migrations/001_initial_schema.sql`
+4. Run the migrations in Supabase using `supabase/migrations/001_initial_schema.sql` and `supabase/migrations/002_telegram_community.sql`
 5. Seed sample data with `corepack pnpm seed:demo`
 6. Start the app with `corepack pnpm dev`
 
@@ -52,10 +55,12 @@ Agent runtime -> Bags/Jupiter trades -> Solana
 
 - Frontend and cron routes: Vercel
 - Database: Supabase
+- Community: Telegram channel + group + bot webhook
 - Prize distribution: GitHub Actions
 
 ## Links
 
 - API docs: `./docs/API.md`
 - Next steps (KO): `./docs/NEXT_STEPS_KO.md`
+- Telegram setup (KO): `./docs/TELEGRAM_COMMUNITY_KO.md`
 - Project references: `../files/TASKS.md`

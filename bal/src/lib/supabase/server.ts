@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { hasSupabaseEnv } from "@/lib/env";
-type ServerClient = SupabaseClient;
+import type { Database } from "@/lib/supabase/types";
+
+type ServerClient = SupabaseClient<Database>;
 
 let serverClient: ServerClient | null = null;
 
@@ -10,7 +12,7 @@ export function createServerClient() {
   }
 
   if (!serverClient) {
-    serverClient = createClient(
+    serverClient = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       {

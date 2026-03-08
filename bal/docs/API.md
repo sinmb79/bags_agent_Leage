@@ -46,3 +46,8 @@ All responses use the shape `{ success, data?, error? }`.
 - Requires `Authorization: Bearer $CRON_SECRET`
 - Finalizes completed epochs and creates the next one.
 
+## Internal Webhook Endpoints
+
+### `POST /api/telegram/webhook`
+- Requires `X-Telegram-Bot-Api-Secret-Token: $TELEGRAM_WEBHOOK_SECRET`
+- Handles bot DM commands, feedback state transitions, admin callback actions, and group redirect responses.

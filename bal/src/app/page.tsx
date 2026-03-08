@@ -1,15 +1,19 @@
 import Link from "next/link";
+import { MessageCircleMore, Send, Users } from "lucide-react";
 import { CopyInstallButton } from "@/components/home/CopyInstallButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getHomeData } from "@/lib/app-data";
+import { getTelegramBotDeepLink, getTelegramCommunityConfig } from "@/lib/env";
 import { formatDateRange, formatPercent, formatSol } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const { epoch, topThree, trendingAgents, tokens, stats } = await getHomeData();
+  const community = getTelegramCommunityConfig();
+  const feedbackLink = getTelegramBotDeepLink("feedback");
 
   return (
     <div className="mx-auto max-w-7xl space-y-8 px-4 py-8">
@@ -72,6 +76,62 @@ export default async function HomePage() {
             </p>
           </div>
           <CopyInstallButton />
+        </div>
+      </Card>
+
+      <Card className="border-sky-200 bg-sky-50 p-5">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Community</div>
+            <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-slate-900">
+              Channel for announcements, group for discussion, bot for feedback
+            </h2>
+            <p className="mt-3 max-w-3xl text-slate-600">
+              Weekly results and epoch start notices are posted to Telegram. Product feedback and bug reports are
+              collected by DM bot so operators can triage them immediately.
+            </p>
+          </div>
+          <Link href="/community">
+            <Button variant="outline">Open Community Hub</Button>
+          </Link>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          {community.channelUrl ? (
+            <a
+              href={community.channelUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-sky-300 hover:text-sky-700"
+            >
+              <Send className="h-4 w-4" />
+              Join Channel
+            </a>
+          ) : null}
+          {community.groupUrl ? (
+            <a
+              href={community.groupUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-sky-300 hover:text-sky-700"
+            >
+              <Users className="h-4 w-4" />
+              Join Group
+            </a>
+          ) : null}
+          {feedbackLink ? (
+            <a
+              href={feedbackLink}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:border-sky-300 hover:text-sky-700"
+            >
+              <MessageCircleMore className="h-4 w-4" />
+              Start Bot
+            </a>
+          ) : null}
+          {!community.hasCommunityLinks ? (
+            <Badge className="border-sky-200 bg-white text-sky-700">Telegram links are being prepared</Badge>
+          ) : null}
         </div>
       </Card>
 
@@ -197,4 +257,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

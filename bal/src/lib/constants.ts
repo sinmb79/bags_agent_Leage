@@ -10,6 +10,6 @@ export const NAV_ITEMS = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/agents", label: "Agents" },
   { href: "/tokens", label: "Tokens" },
+  { href: "/community", label: "Community" },
   { href: "/agents/register", label: "Register" }
 ];
-
