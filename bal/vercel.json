@@ -1,0 +1,17 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/detect-trades",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/update-pnl",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/check-epoch",
+      "schedule": "0 0 * * 1"
+    }
+  ]
+}
+

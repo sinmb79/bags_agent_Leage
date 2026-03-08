@@ -1,0 +1,28 @@
+name: distribute-prizes
+
+on:
+  schedule:
+    - cron: "5 0 * * 1"
+  workflow_dispatch:
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: bal/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile=false
+      - run: pnpm distribute-prizes
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          BAL_PARTNER_PRIVATE_KEY: ${{ secrets.BAL_PARTNER_PRIVATE_KEY }}
