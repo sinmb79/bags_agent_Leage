@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getWeeklyFeeTotal } from "@/lib/bags/partner";
+import { calculateSettlementBreakdown, getReserveBalance } from "@/lib/settlement";
 import {
   createEpoch as createEpochRow,
   getActiveEpoch as getActiveEpochRow,
@@ -43,12 +44,13 @@ export function getEpochTimeRemaining(epoch: Pick<EpochRow, "week_end">) {
 }
 
 export function calculatePrizePool(totalFees: number, operatingCosts: number) {
-  const total = Math.max(totalFees - operatingCosts, 0);
+  void operatingCosts;
+  const breakdown = calculateSettlementBreakdown(totalFees);
   return {
-    total,
-    first: total * 0.5,
-    second: total * 0.3,
-    third: total * 0.2
+    total: breakdown.prizePoolSol,
+    first: breakdown.prizeSplit.first,
+    second: breakdown.prizeSplit.second,
+    third: breakdown.prizeSplit.third
   };
 }
 
@@ -60,8 +62,13 @@ export async function finalizeEpoch(client: Client, epochId: string) {
 
   await updateEpoch(client, epochId, { status: "calculating" });
   const rankings = await listRankingsByEpoch(client, epochId);
-  const totalFees = await getWeeklyFeeTotal(epoch.week_start, epoch.week_end);
-  const prizePool = calculatePrizePool(totalFees, Number(epoch.operating_costs_sol ?? 0));
+  const grossFees = await getWeeklyFeeTotal(epoch.week_start, epoch.week_end);
+  const settlement = calculateSettlementBreakdown(grossFees);
+  const prizePool = calculatePrizePool(grossFees, Number(epoch.operating_costs_sol ?? 0));
+  const reserveBalanceBefore = await getReserveBalance(client).catch((error) => {
+    console.error("getReserveBalance failed during finalizeEpoch", error);
+    return 0;
+  });
 
   const sortedRankings = [...rankings].sort(
     (left, right) => Number(right.composite_score ?? 0) - Number(left.composite_score ?? 0)
@@ -92,8 +99,13 @@ export async function finalizeEpoch(client: Client, epochId: string) {
   }
 
   const completedEpoch = await updateEpoch(client, epochId, {
-    total_fees_sol: Number(totalFees.toFixed(8)),
-    prize_pool_sol: Number(prizePool.total.toFixed(8)),
+    total_fees_sol: settlement.grossFeesClaimedSol,
+    gross_fees_claimed_sol: settlement.grossFeesClaimedSol,
+    prize_pool_sol: settlement.prizePoolSol,
+    operator_revenue_sol: settlement.operatorRevenueSol,
+    reserve_sol: settlement.reserveSol,
+    net_distributable_sol: settlement.netDistributableSol,
+    reserve_balance_after_epoch: Number((reserveBalanceBefore + settlement.reserveSol).toFixed(8)),
     status: "completed"
   });
 
@@ -101,7 +113,8 @@ export async function finalizeEpoch(client: Client, epochId: string) {
     epoch: completedEpoch,
     rankings: sortedRankings,
     placements,
-    prizePool
+    prizePool,
+    settlement
   };
 }
 
@@ -124,8 +137,13 @@ export async function createNewEpoch(client: Client) {
     week_start: monday.toISOString(),
     week_end: sunday.toISOString(),
     total_fees_sol: 0,
+    gross_fees_claimed_sol: 0,
     operating_costs_sol: 0,
     prize_pool_sol: 0,
+    operator_revenue_sol: 0,
+    reserve_sol: 0,
+    net_distributable_sol: 0,
+    reserve_balance_after_epoch: 0,
     status: "active"
   });
 }

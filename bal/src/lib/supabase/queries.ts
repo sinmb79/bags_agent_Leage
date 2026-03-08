@@ -6,6 +6,12 @@ import type {
   EpochInsert,
   EpochRow,
   EpochUpdate,
+  PayoutBatchInsert,
+  PayoutBatchRow,
+  PayoutBatchUpdate,
+  PayoutItemInsert,
+  PayoutItemRow,
+  PayoutItemUpdate,
   PositionInsert,
   PositionUpdate,
   RankingRow,
@@ -15,23 +21,31 @@ import type {
   TelegramUserStateInsert,
   TelegramUserStateRow,
   TelegramUserStateUpdate,
+  TreasuryLedgerInsert,
+  TreasuryLedgerRow,
   TradeInsert,
   TradeRow
 } from "@/lib/supabase/types";
-import type { TelegramFeedbackStatus } from "@/types";
+import type { PayoutBatchStatus, TelegramFeedbackStatus, TreasuryLedgerEntryType } from "@/types";
 
 type Client = SupabaseClient;
 
 const AGENT_COLUMNS =
   "id,name,avatar_url,wallet_address,registered_at,total_trades,total_pnl_sol,win_rate";
 const EPOCH_COLUMNS =
-  "id,epoch_number,week_start,week_end,total_fees_sol,operating_costs_sol,prize_pool_sol,status,created_at";
+  "id,epoch_number,week_start,week_end,total_fees_sol,gross_fees_claimed_sol,operating_costs_sol,prize_pool_sol,operator_revenue_sol,reserve_sol,net_distributable_sol,reserve_balance_after_epoch,status,created_at";
 const TRADE_COLUMNS =
   "id,agent_id,epoch_id,token_mint,token_symbol,action,amount_sol,token_amount,price_per_token,tx_signature,traded_at,detected_at";
 const RANKING_COLUMNS =
   "id,epoch_id,agent_id,rank,pnl_sol,sharpe_ratio,max_drawdown,trade_efficiency,composite_score,prize_sol,prize_tx_signature";
 const POSITION_COLUMNS =
   "id,agent_id,token_mint,token_symbol,amount,avg_buy_price,current_price,unrealized_pnl_sol,updated_at";
+const PAYOUT_BATCH_COLUMNS =
+  "id,epoch_id,status,treasury_wallet_address,operator_wallet_address,scheduled_for,gross_fees_claimed_sol,prize_pool_sol,operator_revenue_sol,reserve_sol,net_distributable_sol,reserve_balance_after_epoch,admin_message_id,approval_requested_at,approved_at,approved_by_telegram_user_id,approved_by_telegram_username,executed_at,failure_reason,created_at,updated_at";
+const PAYOUT_ITEM_COLUMNS =
+  "id,payout_batch_id,epoch_id,ranking_id,agent_id,item_key,item_type,rank,recipient_wallet_address,recipient_name,amount_sol,status,tx_signature,attempt_count,last_error,created_at,updated_at";
+const TREASURY_LEDGER_COLUMNS =
+  "id,epoch_id,payout_batch_id,payout_item_id,entry_type,amount_sol,wallet_address,tx_signature,note,created_at";
 const TELEGRAM_FEEDBACK_COLUMNS =
   "id,telegram_user_id,telegram_username,telegram_chat_id,source,category,message,agent_name,wallet_address,linked_agent_id,status,admin_message_id,created_at,updated_at";
 const TELEGRAM_STATE_COLUMNS = "telegram_user_id,telegram_chat_id,state,draft_category,updated_at";
@@ -377,6 +391,227 @@ export async function listPendingPrizeDistribution(client: Client): Promise<Rank
   return (data ?? []) as RankingRow[];
 }
 
+export async function getPayoutBatchById(client: Client, payoutBatchId: string): Promise<PayoutBatchRow | null> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .select(PAYOUT_BATCH_COLUMNS)
+    .eq("id", payoutBatchId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as PayoutBatchRow | null;
+}
+
+export async function getPayoutBatchByEpochId(client: Client, epochId: string): Promise<PayoutBatchRow | null> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .select(PAYOUT_BATCH_COLUMNS)
+    .eq("epoch_id", epochId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as PayoutBatchRow | null;
+}
+
+export async function getLatestPayoutBatch(client: Client): Promise<PayoutBatchRow | null> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .select(PAYOUT_BATCH_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as PayoutBatchRow | null;
+}
+
+export async function createPayoutBatch(client: Client, payload: PayoutBatchInsert): Promise<PayoutBatchRow> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .insert(payload)
+    .select(PAYOUT_BATCH_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as PayoutBatchRow;
+}
+
+export async function updatePayoutBatch(
+  client: Client,
+  payoutBatchId: string,
+  payload: PayoutBatchUpdate
+): Promise<PayoutBatchRow> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .update(payload)
+    .eq("id", payoutBatchId)
+    .select(PAYOUT_BATCH_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as PayoutBatchRow;
+}
+
+export async function listApprovalPendingPayoutBatches(
+  client: Client,
+  scheduledBefore: string
+): Promise<PayoutBatchRow[]> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .select(PAYOUT_BATCH_COLUMNS)
+    .in("status", ["pending_approval", "held"] satisfies PayoutBatchStatus[])
+    .lte("scheduled_for", scheduledBefore)
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PayoutBatchRow[];
+}
+
+export async function listRunnablePayoutBatches(
+  client: Client,
+  scheduledBefore: string
+): Promise<PayoutBatchRow[]> {
+  const { data, error } = await client
+    .from("payout_batches")
+    .select(PAYOUT_BATCH_COLUMNS)
+    .in("status", ["approved", "executing", "partial_failure"] satisfies PayoutBatchStatus[])
+    .lte("scheduled_for", scheduledBefore)
+    .order("scheduled_for", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PayoutBatchRow[];
+}
+
+export async function insertPayoutItems(client: Client, payload: PayoutItemInsert[]): Promise<PayoutItemRow[]> {
+  if (!payload.length) {
+    return [];
+  }
+
+  const { data, error } = await client
+    .from("payout_items")
+    .insert(payload)
+    .select(PAYOUT_ITEM_COLUMNS);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PayoutItemRow[];
+}
+
+export async function listPayoutItemsByBatch(client: Client, payoutBatchId: string): Promise<PayoutItemRow[]> {
+  const { data, error } = await client
+    .from("payout_items")
+    .select(PAYOUT_ITEM_COLUMNS)
+    .eq("payout_batch_id", payoutBatchId)
+    .order("item_type", { ascending: true })
+    .order("rank", { ascending: true, nullsFirst: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PayoutItemRow[];
+}
+
+export async function updatePayoutItem(
+  client: Client,
+  payoutItemId: string,
+  payload: PayoutItemUpdate
+): Promise<PayoutItemRow> {
+  const { data, error } = await client
+    .from("payout_items")
+    .update(payload)
+    .eq("id", payoutItemId)
+    .select(PAYOUT_ITEM_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as PayoutItemRow;
+}
+
+export async function cancelPendingPayoutItems(client: Client, payoutBatchId: string): Promise<PayoutItemRow[]> {
+  const { data, error } = await client
+    .from("payout_items")
+    .update({ status: "cancelled" })
+    .eq("payout_batch_id", payoutBatchId)
+    .in("status", ["pending", "failed", "processing"])
+    .select(PAYOUT_ITEM_COLUMNS);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as PayoutItemRow[];
+}
+
+export async function insertTreasuryLedgerEntries(
+  client: Client,
+  payload: TreasuryLedgerInsert[]
+): Promise<TreasuryLedgerRow[]> {
+  if (!payload.length) {
+    return [];
+  }
+
+  const { data, error } = await client
+    .from("treasury_ledger")
+    .insert(payload)
+    .select(TREASURY_LEDGER_COLUMNS);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as TreasuryLedgerRow[];
+}
+
+export async function listTreasuryLedgerByType(
+  client: Client,
+  entryType: TreasuryLedgerEntryType,
+  payoutBatchId?: string
+): Promise<TreasuryLedgerRow[]> {
+  let query = client
+    .from("treasury_ledger")
+    .select(TREASURY_LEDGER_COLUMNS)
+    .eq("entry_type", entryType)
+    .order("created_at", { ascending: false });
+
+  if (payoutBatchId) {
+    query = query.eq("payout_batch_id", payoutBatchId);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as TreasuryLedgerRow[];
+}
+
 export async function getTelegramFeedbackById(
   client: Client,
   feedbackId: string
@@ -508,8 +743,11 @@ export async function matchAgentByWalletOrName(
 export type QueryRows = {
   AgentRow: AgentRow;
   EpochRow: EpochRow;
+  PayoutBatchRow: PayoutBatchRow;
+  PayoutItemRow: PayoutItemRow;
   RankingRow: RankingRow;
   TelegramFeedbackRow: TelegramFeedbackRow;
   TelegramUserStateRow: TelegramUserStateRow;
+  TreasuryLedgerRow: TreasuryLedgerRow;
   TradeRow: TradeRow;
 };

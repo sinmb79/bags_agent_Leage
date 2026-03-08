@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getHomeData } from "@/lib/app-data";
 import { getTelegramBotDeepLink, getTelegramCommunityConfig } from "@/lib/env";
-import { formatDateRange, formatPercent, formatSol } from "@/lib/utils";
+import { formatDateRange, formatPercent, formatSol, shortenAddress } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { epoch, topThree, trendingAgents, tokens, stats } = await getHomeData();
+  const { epoch, topThree, trendingAgents, tokens, treasury, stats } = await getHomeData();
   const community = getTelegramCommunityConfig();
   const feedbackLink = getTelegramBotDeepLink("feedback");
 
@@ -134,6 +134,80 @@ export default async function HomePage() {
           ) : null}
         </div>
       </Card>
+
+      <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <Card className="border-amber-200 bg-amber-50 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.16em] text-amber-700">Treasury Status</div>
+              <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-slate-900">
+                Prize pool, reserve, and payout timer are public
+              </h2>
+            </div>
+            <Link href="/community">
+              <Button variant="outline">Transparency</Button>
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-3xl border border-amber-200 bg-white p-4">
+              <div className="text-sm text-slate-500">Projected Prize Pool</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                {formatSol(treasury.currentPrizePoolSol)} SOL
+              </div>
+            </div>
+            <div className="rounded-3xl border border-amber-200 bg-white p-4">
+              <div className="text-sm text-slate-500">Reserve Balance</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                {formatSol(treasury.reserveBalanceSol)} SOL
+              </div>
+            </div>
+            <div className="rounded-3xl border border-amber-200 bg-white p-4">
+              <div className="text-sm text-slate-500">Next Payout</div>
+              <div className="mt-2 text-lg font-bold text-slate-900">
+                {treasury.nextPayoutDate
+                  ? new Date(treasury.nextPayoutDate).toLocaleString("en-US", { timeZone: "Asia/Seoul" })
+                  : "Pending"}
+              </div>
+            </div>
+            <div className="rounded-3xl border border-amber-200 bg-white p-4">
+              <div className="text-sm text-slate-500">Batch Status</div>
+              <div className="mt-2 text-lg font-bold text-slate-900">
+                {treasury.currentPayoutBatchStatus ?? treasury.lastPayoutStatus ?? "Not scheduled"}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <span>Treasury wallet:</span>
+            <code className="rounded-full bg-white px-3 py-1 font-semibold text-slate-900">
+              {treasury.treasuryWallet ? shortenAddress(treasury.treasuryWallet, 6, 6) : "Preparing"}
+            </code>
+            {treasury.treasuryBalanceSol !== null ? (
+              <Badge className="border-amber-200 bg-white text-amber-800">
+                Balance {formatSol(treasury.treasuryBalanceSol)} SOL
+              </Badge>
+            ) : null}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Fee Split</div>
+          <div className="mt-6 space-y-4">
+            {[
+              ["70%", "Prize pool", "Paid to the weekly top three after admin approval."],
+              ["20%", "Operator revenue", "Sustains ops, monitoring, and ongoing product work."],
+              ["10%", "Reserve", "Stays in treasury to absorb failures and balance gaps."]
+            ].map(([share, title, description]) => (
+              <div key={title} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-3">
+                  <Badge className="bg-white text-amber-700">{share}</Badge>
+                  <div className="font-semibold text-slate-900">{title}</div>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{description}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         {topThree.map((entry) => (

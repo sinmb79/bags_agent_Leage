@@ -19,6 +19,14 @@ export interface TelegramCommunityConfig {
   hasCommunityLinks: boolean;
 }
 
+export interface SettlementConfig {
+  partnerWallet: string | null;
+  operatorWallet: string | null;
+  prizeShareBps: number;
+  revenueShareBps: number;
+  reserveShareBps: number;
+}
+
 export function hasEnvValue(name: string) {
   return Boolean(process.env[name] && process.env[name]?.trim());
 }
@@ -78,4 +86,41 @@ export function getTelegramBotDeepLink(startParam?: string) {
 
   const encoded = startParam ? `?start=${encodeURIComponent(startParam)}` : "";
   return `https://t.me/${config.botUsername}${encoded}`;
+}
+
+function readBpsEnv(name: string, fallback: number) {
+  const value = getOptionalNumberEnv(name);
+  if (value === null) {
+    return fallback;
+  }
+
+  const rounded = Math.round(value);
+  if (rounded < 0 || rounded > 10_000) {
+    return fallback;
+  }
+
+  return rounded;
+}
+
+export function getSettlementConfig(): SettlementConfig {
+  const defaults = {
+    prizeShareBps: 7_000,
+    revenueShareBps: 2_000,
+    reserveShareBps: 1_000
+  };
+
+  const candidate = {
+    prizeShareBps: readBpsEnv("BAL_PRIZE_SHARE_BPS", defaults.prizeShareBps),
+    revenueShareBps: readBpsEnv("BAL_REVENUE_SHARE_BPS", defaults.revenueShareBps),
+    reserveShareBps: readBpsEnv("BAL_RESERVE_SHARE_BPS", defaults.reserveShareBps)
+  };
+
+  const total = candidate.prizeShareBps + candidate.revenueShareBps + candidate.reserveShareBps;
+  const normalized = total === 10_000 ? candidate : defaults;
+
+  return {
+    partnerWallet: getOptionalEnv("BAL_PARTNER_WALLET"),
+    operatorWallet: getOptionalEnv("BAL_OPERATOR_WALLET"),
+    ...normalized
+  };
 }

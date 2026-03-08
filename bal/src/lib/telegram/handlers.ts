@@ -18,6 +18,7 @@ import {
 } from "@/lib/telegram/copy";
 import { handleAdminFeedbackStatusCallback, handleFeedbackCategorySelection, handleFeedbackMessage, startFeedbackFlow } from "@/lib/telegram/feedback";
 import { formatTelegramFaqMessage } from "@/lib/telegram/faq";
+import { handleSettlementAdminCallback } from "@/lib/telegram/settlement";
 
 type Client = SupabaseClient<Database> | null;
 
@@ -163,6 +164,24 @@ export async function handleTelegramUpdate(client: Client, update: TelegramUpdat
       }
 
       await handleAdminFeedbackStatusCallback(client, callbackQuery);
+      return;
+    }
+
+    if (
+      callbackQuery.data.startsWith("approve_settlement:") ||
+      callbackQuery.data.startsWith("hold_settlement:") ||
+      callbackQuery.data.startsWith("cancel_settlement:")
+    ) {
+      if (!client) {
+        await answerTelegramCallbackQuery({
+          callbackQueryId: callbackQuery.id,
+          text: getFeedbackUnavailableMessage(),
+          showAlert: true
+        });
+        return;
+      }
+
+      await handleSettlementAdminCallback(client, callbackQuery);
       return;
     }
 

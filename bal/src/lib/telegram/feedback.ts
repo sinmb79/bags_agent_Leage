@@ -83,7 +83,10 @@ function getFeedbackCategoryKeyboard(): TelegramInlineKeyboardMarkup {
   };
 }
 
-function getAdminStatusKeyboard(feedbackId: string, status: TelegramFeedbackRow["status"]): TelegramInlineKeyboardMarkup {
+function getAdminStatusKeyboard(
+  feedbackId: string,
+  status: TelegramFeedbackRow["status"]
+): TelegramInlineKeyboardMarkup {
   if (status === "closed") {
     return {
       inline_keyboard: []
@@ -156,7 +159,7 @@ function parseFeedbackBody(text: string) {
     }
 
     if (!agentName) {
-      const parsedAgent = parseMetadataLine(line, ["agent:", "agent name:", "에이전트:", "에이전트 이름:"]);
+      const parsedAgent = parseMetadataLine(line, ["agent:", "agent name:"]);
       if (parsedAgent) {
         agentName = parsedAgent;
         continue;
@@ -164,7 +167,7 @@ function parseFeedbackBody(text: string) {
     }
 
     if (!walletAddress) {
-      const parsedWallet = parseMetadataLine(line, ["wallet:", "wallet address:", "지갑:", "지갑 주소:"]);
+      const parsedWallet = parseMetadataLine(line, ["wallet:", "wallet address:"]);
       if (parsedWallet) {
         walletAddress = parsedWallet;
         continue;

@@ -2,7 +2,7 @@ name: distribute-prizes
 
 on:
   schedule:
-    - cron: "5 0 * * 1"
+    - cron: "5 1 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -25,7 +25,13 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          BAGS_API_KEY: ${{ secrets.BAGS_API_KEY }}
+          BAL_PARTNER_WALLET: ${{ secrets.BAL_PARTNER_WALLET }}
+          BAL_OPERATOR_WALLET: ${{ secrets.BAL_OPERATOR_WALLET }}
           BAL_PARTNER_PRIVATE_KEY: ${{ secrets.BAL_PARTNER_PRIVATE_KEY }}
+          BAL_PRIZE_SHARE_BPS: ${{ secrets.BAL_PRIZE_SHARE_BPS }}
+          BAL_REVENUE_SHARE_BPS: ${{ secrets.BAL_REVENUE_SHARE_BPS }}
+          BAL_RESERVE_SHARE_BPS: ${{ secrets.BAL_RESERVE_SHARE_BPS }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           TELEGRAM_ADMIN_THREAD_ID: ${{ secrets.TELEGRAM_ADMIN_THREAD_ID }}

@@ -1,18 +1,30 @@
-import type { TelegramFeedbackRow } from "@/lib/supabase/types";
+import type { PayoutBatchRow, PayoutItemRow, TelegramFeedbackRow } from "@/lib/supabase/types";
 import { getBaseUrl, getTelegramBotDeepLink, getTelegramCommunityConfig } from "@/lib/env";
 import { formatSol, shortenAddress } from "@/lib/utils";
+
+function formatTimestamp(value: string | null) {
+  if (!value) {
+    return "not set";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Seoul"
+  }).format(new Date(value));
+}
 
 export function getStartMessage() {
   const config = getTelegramCommunityConfig();
   const lines = [
-    "B.A.L. community bot입니다.",
-    "이 봇은 FAQ 안내, 링크 공유, 피드백 접수를 담당합니다.",
+    "B.A.L. community bot",
+    "This bot handles FAQ replies, link sharing, settlement approvals, and private feedback intake.",
     "",
     "Commands",
-    "/help - 사용 가능한 기능",
-    "/faq - 자주 묻는 질문",
-    "/links - 채널, 그룹, 웹 링크",
-    "/feedback - 피드백 접수 시작"
+    "/help - available commands",
+    "/faq - quick FAQ",
+    "/links - channel, group, and site links",
+    "/feedback - start a private feedback ticket"
   ];
 
   if (config.channelUrl || config.groupUrl) {
@@ -31,12 +43,12 @@ export function getStartMessage() {
 
 export function getHelpMessage() {
   return [
-    "무엇을 할 수 있나요?",
-    "- /faq 로 핵심 안내를 확인합니다.",
-    "- /links 로 채널, 그룹, 웹사이트 링크를 받습니다.",
-    "- /feedback 로 버그, 아이디어, 질문, 신고를 운영진에게 전달합니다.",
+    "Available actions",
+    "- /faq for common questions",
+    "- /links for community URLs",
+    "- /feedback for bug reports, ideas, questions, or abuse reports",
     "",
-    "피드백은 DM에서만 받습니다. 그룹에서는 /feedback 입력 시 DM 링크로 안내됩니다."
+    "Detailed feedback is collected in DM only. Group mentions are redirected into DM."
   ].join("\n");
 }
 
@@ -47,61 +59,61 @@ export function getLinksMessage() {
   return [
     "B.A.L. community links",
     `Website: ${config.appUrl}`,
-    `Channel: ${config.channelUrl ?? "준비 중"}`,
-    `Group: ${config.groupUrl ?? "준비 중"}`,
-    `Feedback Bot: ${feedbackLink ?? "준비 중"}`
+    `Channel: ${config.channelUrl ?? "coming soon"}`,
+    `Group: ${config.groupUrl ?? "coming soon"}`,
+    `Feedback Bot: ${feedbackLink ?? "coming soon"}`
   ].join("\n");
 }
 
 export function getFeedbackStartMessage() {
   return [
-    "피드백 카테고리를 먼저 선택해주세요.",
-    "다음 메시지에서 에이전트 이름과 지갑 주소는 선택적으로 남길 수 있고, 본문은 필수입니다.",
+    "Choose a feedback category first.",
+    "In your next message, agent name and wallet are optional. The message body is required.",
     "",
-    "예시",
+    "Example",
     "Agent: Alpha Trader",
     "Wallet: So11111111111111111111111111111111111111112",
-    "본문: 체결가 계산이 실제와 다르게 보입니다."
+    "Message: The fill price looks different from the actual swap."
   ].join("\n");
 }
 
 export function getFeedbackPromptMessage(categoryLabel: string) {
   return [
-    `카테고리: ${categoryLabel}`,
-    "이제 DM으로 피드백 본문을 보내주세요.",
-    "에이전트 이름과 지갑 주소는 선택, 본문은 필수입니다."
+    `Category: ${categoryLabel}`,
+    "Now send the message body in DM.",
+    "Agent name and wallet are optional. The message body is required."
   ].join("\n");
 }
 
 export function getFeedbackSavedMessage(feedbackId: string) {
   return [
-    "피드백이 접수되었습니다.",
+    "Feedback saved.",
     `Ticket: ${feedbackId}`,
-    "운영진에게 바로 전달했고, 필요하면 Telegram에서 추가로 안내하겠습니다."
+    "The operator team has been notified."
   ].join("\n");
 }
 
 export function getFeedbackUnavailableMessage() {
-  return "현재 피드백 저장 환경이 연결되지 않아 접수를 잠시 받을 수 없습니다.";
+  return "Feedback intake is temporarily unavailable because the storage environment is not configured.";
 }
 
 export function getAwaitingCategoryReminder() {
-  return "카테고리 버튼을 먼저 선택해주세요. /feedback 명령으로 다시 시작할 수 있습니다.";
+  return "Choose a category button first. You can restart with /feedback.";
 }
 
 export function getFeedbackBodyRequiredMessage() {
-  return "본문이 비어 있습니다. 한 줄 이상 설명을 보내주세요.";
+  return "The message body is empty. Send at least one line describing the issue.";
 }
 
 export function getDmRedirectMessage() {
   return [
-    "피드백은 그룹이 아니라 봇 DM으로 받습니다.",
-    "아래 버튼으로 DM을 열고 /feedback 을 시작해주세요."
+    "Detailed feedback is collected in bot DM, not in the public group.",
+    "Open DM and run /feedback from there."
   ].join("\n");
 }
 
 export function getUnknownDmMessage() {
-  return "도움이 필요하면 /help 또는 /feedback 을 입력해주세요.";
+  return "Use /help or /feedback to continue.";
 }
 
 export function formatAdminFeedbackAlert(
@@ -143,6 +155,102 @@ export function formatAdminFeedbackUpdatedAlert(
   }
 
   return lines.join("\n");
+}
+
+function formatSettlementItems(items: PayoutItemRow[]) {
+  if (!items.length) {
+    return "No payout items were generated.";
+  }
+
+  return items
+    .map((item) => {
+      const label = item.item_type === "operator_revenue" ? "Operator" : `#${item.rank ?? "-"} ${item.recipient_name}`;
+      return `${label} | ${formatSol(Number(item.amount_sol ?? 0))} SOL | ${item.status}`;
+    })
+    .join("\n");
+}
+
+export function formatSettlementApprovalRequest(input: {
+  batch: PayoutBatchRow;
+  items: PayoutItemRow[];
+  epochNumber: number;
+}) {
+  return [
+    "Settlement approval required",
+    `Epoch: #${input.epochNumber}`,
+    `Status: ${input.batch.status}`,
+    `Scheduled: ${formatTimestamp(input.batch.scheduled_for)}`,
+    `Gross fee snapshot: ${formatSol(Number(input.batch.gross_fees_claimed_sol ?? 0))} SOL`,
+    `Prize pool: ${formatSol(Number(input.batch.prize_pool_sol ?? 0))} SOL`,
+    `Operator revenue: ${formatSol(Number(input.batch.operator_revenue_sol ?? 0))} SOL`,
+    `Reserve: ${formatSol(Number(input.batch.reserve_sol ?? 0))} SOL`,
+    `Projected reserve balance: ${formatSol(Number(input.batch.reserve_balance_after_epoch ?? 0))} SOL`,
+    input.batch.failure_reason ? `Issue: ${input.batch.failure_reason}` : "",
+    "",
+    formatSettlementItems(input.items)
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function formatSettlementStatusUpdate(input: {
+  batch: PayoutBatchRow;
+  items: PayoutItemRow[];
+  epochNumber: number;
+  handledBy?: string | null;
+}) {
+  return [
+    formatSettlementApprovalRequest({
+      batch: input.batch,
+      items: input.items,
+      epochNumber: input.epochNumber
+    }),
+    input.handledBy ? `\nHandled by: ${input.handledBy}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function formatSettlementReminder(input: {
+  batch: PayoutBatchRow;
+  epochNumber: number;
+}) {
+  return [
+    "Settlement approval reminder",
+    `Epoch: #${input.epochNumber}`,
+    `Status: ${input.batch.status}`,
+    `Scheduled: ${formatTimestamp(input.batch.scheduled_for)}`,
+    "The settlement batch has not been approved yet, so automated payout was skipped."
+  ].join("\n");
+}
+
+export function formatInsufficientFundsAlert(input: {
+  batch: PayoutBatchRow;
+  epochNumber: number;
+  requiredSol: number;
+  availableSol: number | null;
+}) {
+  return [
+    "Settlement blocked: insufficient treasury balance",
+    `Epoch: #${input.epochNumber}`,
+    `Required: ${formatSol(input.requiredSol)} SOL`,
+    `Available: ${formatSol(input.availableSol ?? 0)} SOL`,
+    `Batch status: ${input.batch.status}`
+  ].join("\n");
+}
+
+export function formatPartialFailureAlert(input: {
+  batch: PayoutBatchRow;
+  epochNumber: number;
+  failedItems: Array<{ label: string; reason: string }>;
+}) {
+  return [
+    "Settlement partial failure",
+    `Epoch: #${input.epochNumber}`,
+    `Batch status: ${input.batch.status}`,
+    "",
+    ...input.failedItems.map((item) => `${item.label} | ${item.reason}`)
+  ].join("\n");
 }
 
 export function formatEpochResultsAnnouncement(input: {

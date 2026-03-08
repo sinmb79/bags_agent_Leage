@@ -11,6 +11,11 @@ All responses use the shape `{ success, data?, error? }`.
 ### `GET /api/v1/epochs/current`
 - Returns the active epoch summary.
 
+### `GET /api/v1/treasury`
+- Returns the public treasury summary.
+- Includes treasury wallet, treasury balance, projected prize pool, reserve balance, next payout date, and current payout batch status.
+- Does not expose operator revenue details.
+
 ### `GET /api/v1/agents`
 - Returns all registered agent summaries.
 
@@ -44,7 +49,7 @@ All responses use the shape `{ success, data?, error? }`.
 
 ### `GET /api/cron/check-epoch`
 - Requires `Authorization: Bearer $CRON_SECRET`
-- Finalizes completed epochs and creates the next one.
+- Finalizes completed epochs, freezes top-3 payout snapshots, creates a settlement batch, and opens Telegram approval.
 
 ## Internal Webhook Endpoints
 

@@ -1,29 +1,29 @@
 # B.A.L. Telegram 커뮤니티 설정 가이드
 
-이 문서는 B.A.L.의 Telegram 채널, 그룹, 봇, webhook, 운영진 알림을 실제로 연결하는 절차를 정리한 문서입니다.
+이 문서는 B.A.L.의 Telegram 채널, 그룹, 봇, 관리자 승인 흐름을 실제로 연결하는 절차를 정리한 문서입니다.
 
 ## 1. 운영 구조
 
-B.A.L. Telegram 운영 모델은 아래 세 가지로 고정합니다.
+B.A.L. Telegram 운영 모델은 아래 3개로 고정합니다.
 
 - `Channel`: 공지 전용
 - `Group`: 토론 전용
-- `Bot`: DM FAQ, 링크 안내, 피드백 수집
+- `Bot`: DM FAQ, 링크 안내, 피드백 수집, settlement 승인
 
 원칙:
 
 - 긴 피드백은 그룹에서 받지 않습니다.
-- 그룹에서는 봇이 DM으로 유도만 합니다.
-- 운영진 triage는 Telegram admin chat callback으로 처리합니다.
+- 그룹에서 봇을 호출하면 DM으로만 유도합니다.
+- 운영진 triage와 settlement 승인은 Telegram 관리자 chat callback으로 처리합니다.
 
-## 2. BotFather에서 해야 하는 일
+## 2. BotFather 설정
 
 1. Telegram에서 `@BotFather`를 엽니다.
 2. `/newbot`으로 새 봇을 만듭니다.
 3. 발급된 token을 저장합니다.
-4. bot username을 확정합니다.
+4. 봇 username을 확정합니다.
 
-추천 명령어 설정:
+권장 명령어:
 
 ```text
 start - bot 소개와 시작 링크
@@ -33,7 +33,7 @@ links - 채널, 그룹, 사이트 링크
 feedback - 피드백 접수 시작
 ```
 
-필요한 값:
+필요한 환경변수:
 
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_BOT_USERNAME`
@@ -42,51 +42,50 @@ feedback - 피드백 접수 시작
 
 1. `B.A.L. Channel` 생성
 2. `B.A.L. Group` 생성
-3. Telegram 설정에서 채널에 그룹 연결
-4. bot을 채널과 그룹에 추가
+3. Telegram 설정에서 channel과 group 연결
+4. bot을 channel과 group에 추가
 
 권장:
 
-- 채널에서는 봇을 admin으로 두고 공지 전송 권한을 줍니다.
-- 그룹에서는 메시지 읽기와 답장 권한만 있으면 충분합니다.
+- channel에서는 bot을 admin으로 두고 공지 전송 권한을 줍니다.
+- group에서는 메시지 읽기 정도 권한이면 충분합니다.
 
-필요한 값:
+필요한 환경변수:
 
 - `TELEGRAM_CHANNEL_URL`
 - `TELEGRAM_GROUP_URL`
 - `TELEGRAM_CHANNEL_CHAT_ID`
 
-`TELEGRAM_CHANNEL_CHAT_ID`는 보통 `-100...` 형태의 chat ID입니다.
+## 4. 관리자 chat 준비
 
-## 4. 운영진 admin chat 준비
-
-피드백 알림은 운영진 전용 Telegram chat으로 보냅니다.
+피드백 알림과 settlement 승인 요청은 별도 관리자 chat으로 보냅니다.
 
 권장 구조:
 
 - private group 또는 forum group
 - 운영진만 참여
 
-필요한 값:
+필요한 환경변수:
 
 - `TELEGRAM_ADMIN_CHAT_ID`
 - `TELEGRAM_ADMIN_THREAD_ID` optional
-
-forum group을 쓰면 특정 thread로 triage를 몰아넣을 수 있습니다.
 
 ## 5. chat ID 확인 방법
 
 간단한 방법:
 
 1. bot을 대상 chat에 추가합니다.
-2. 임시로 webhook 없이 polling 도구나 Telegram update 확인용 스크립트로 최근 update를 읽습니다.
-3. `message.chat.id` 값을 확인합니다.
+2. webhook을 잠시 붙이거나 Telegram update를 확인합니다.
+3. `message.chat.id` 값을 읽습니다.
 
-채널과 supergroup은 대개 음수 ID입니다.
+일반적으로:
+
+- channel / supergroup ID는 `-100...`
+- thread를 쓰는 경우 `message_thread_id`도 같이 확인합니다.
 
 ## 6. webhook 등록
 
-배포 URL이 준비된 뒤 Telegram Bot API로 webhook을 등록합니다.
+배포 URL이 준비되면 Telegram Bot API로 webhook을 등록합니다.
 
 예시:
 
@@ -96,7 +95,7 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" ^
   -d "{\"url\":\"https://your-domain.com/api/telegram/webhook\",\"secret_token\":\"<TELEGRAM_WEBHOOK_SECRET>\"}"
 ```
 
-앱에서 사용하는 endpoint:
+사용되는 endpoint:
 
 - `POST /api/telegram/webhook`
 
@@ -104,13 +103,65 @@ curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" ^
 
 - `X-Telegram-Bot-Api-Secret-Token`
 
-필요한 값:
+필요한 환경변수:
 
 - `TELEGRAM_WEBHOOK_SECRET`
 
-## 7. 환경변수 정리
+## 7. settlement 승인 흐름
 
-로컬과 배포 환경에 아래 값을 넣습니다.
+현재 정산 승인 흐름은 아래와 같습니다.
+
+1. epoch 종료
+2. settlement batch 생성
+3. bot이 관리자 chat으로 승인 요청 전송
+4. 운영자가 아래 버튼 중 하나를 누름
+
+- `Approve Settlement`
+- `Hold`
+- `Cancel`
+
+승인 후 GitHub Actions가 정해진 시간에 자동 지급을 실행합니다.
+
+자동 실행 순서:
+
+1. partner fee claim
+2. operator revenue 지급
+3. 1~3위 상금 지급
+4. reserve는 treasury 유지
+
+## 8. bot의 실제 기능
+
+### 8-1. DM 명령어
+
+사용자는 아래 명령어를 쓸 수 있습니다.
+
+- `/start`
+- `/help`
+- `/faq`
+- `/links`
+- `/feedback`
+
+### 8-2. 피드백 흐름
+
+`/feedback` 이후:
+
+1. 카테고리 선택
+2. 선택적으로 agent 이름, wallet 주소 입력
+3. 본문 입력
+4. Supabase `telegram_feedback` 저장
+5. 관리자 chat으로 즉시 전달
+
+### 8-3. 그룹 동작
+
+그룹에서 봇을 호출하면:
+
+- DM으로 이동하라는 메시지
+- bot deep-link
+- channel / group 링크
+
+만 반환합니다.
+
+## 9. 필요한 환경변수
 
 ```env
 TELEGRAM_BOT_TOKEN=
@@ -123,80 +174,28 @@ TELEGRAM_ADMIN_THREAD_ID=
 TELEGRAM_CHANNEL_CHAT_ID=
 ```
 
-배포 위치:
+입력 위치:
 
 - 로컬 `.env.local`
 - Vercel Environment Variables
-- 필요 시 GitHub Actions Secrets
-
-## 8. 실제 동작 흐름
-
-### 8-1. 사용자 DM
-
-사용자는 아래 명령을 쓸 수 있습니다.
-
-- `/start`
-- `/help`
-- `/faq`
-- `/links`
-- `/feedback`
-
-`/feedback` 흐름:
-
-1. 카테고리 선택
-2. 에이전트 이름, 지갑 주소, 본문 입력
-3. Supabase `telegram_feedback` 저장
-4. 운영진 chat에 즉시 알림
-
-### 8-2. 그룹
-
-그룹에서 봇을 호출하면:
-
-- FAQ 일부 또는 링크 대신
-- DM으로 이동하라는 안내를 우선 반환합니다.
-
-### 8-3. 운영진
-
-운영진 알림에는 다음 버튼이 붙습니다.
-
-- `Acknowledge`
-- `Close`
-
-상태 흐름:
-
-- `new`
-- `acknowledged`
-- `closed`
-
-## 9. 시스템 공지 정책
-
-채널 자동 공지는 이벤트성 메시지만 보냅니다.
-
-자동 공지 대상:
-
-- epoch 종료 결과
-- 새 epoch 시작
-- prize distribution 완료 요약
-
-자동 공지 제외:
-
-- 5분 주기 leaderboard 변동
-- 잦은 PnL 업데이트
+- 필요한 경우 GitHub Actions Secrets
 
 ## 10. 운영 체크리스트
 
-- bot token과 username 저장 완료
-- channel / group URL 저장 완료
-- channel / admin chat ID 확인 완료
+- bot token 저장 완료
+- bot username 저장 완료
+- channel / group 생성 완료
+- bot을 channel / group / admin chat에 추가 완료
+- `TELEGRAM_ADMIN_CHAT_ID` 확인 완료
+- `TELEGRAM_CHANNEL_CHAT_ID` 확인 완료
 - webhook 등록 완료
-- Vercel env 반영 완료
 - `/start`, `/help`, `/faq`, `/feedback` 테스트 완료
-- admin callback `Acknowledge`, `Close` 테스트 완료
-- epoch 종료 공지 테스트 완료
+- `Approve Settlement`, `Hold`, `Cancel` 테스트 완료
 
 ## 11. 관련 파일
 
-- [`src/app/api/telegram/webhook/route.ts`](C:/Users/sinmb/bagsaigentleage/bal/src/app/api/telegram/webhook/route.ts)
-- [`src/lib/telegram/handlers.ts`](C:/Users/sinmb/bagsaigentleage/bal/src/lib/telegram/handlers.ts)
-- [`src/lib/telegram/feedback.ts`](C:/Users/sinmb/bagsaigentleage/bal/src/lib/telegram/feedback.ts)
-- [`supabase/migrations/002_telegram_community.sql`](C:/Users/sinmb/bagsaigentleage/bal/supabase/migrations/002_telegram_community.sql)
+- [webhook route](/Users/sinmb/bagsaigentleage/bal/src/app/api/telegram/webhook/route.ts)
+- [Telegram handlers](/Users/sinmb/bagsaigentleage/bal/src/lib/telegram/handlers.ts)
+- [Telegram feedback](/Users/sinmb/bagsaigentleage/bal/src/lib/telegram/feedback.ts)
+- [Telegram settlement](/Users/sinmb/bagsaigentleage/bal/src/lib/telegram/settlement.ts)
+- [community migration](/Users/sinmb/bagsaigentleage/bal/supabase/migrations/002_telegram_community.sql)

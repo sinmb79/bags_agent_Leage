@@ -2,14 +2,17 @@ import Link from "next/link";
 import { MessageCircleMore, Send, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { getTreasurySummary } from "@/lib/app-data";
 import { getTelegramBotDeepLink, getTelegramCommunityConfig } from "@/lib/env";
 import { TELEGRAM_FAQ } from "@/lib/telegram/faq";
+import { formatSol, shortenAddress } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default function CommunityPage() {
+export default async function CommunityPage() {
   const community = getTelegramCommunityConfig();
   const feedbackLink = getTelegramBotDeepLink("feedback");
+  const treasury = await getTreasurySummary();
 
   const actions = [
     community.channelUrl
@@ -128,6 +131,44 @@ export default function CommunityPage() {
         </Card>
 
         <div className="space-y-6">
+          <Card className="p-6">
+            <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Treasury transparency</div>
+            <div className="mt-5 space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm text-slate-500">Projected prize pool</div>
+                <div className="mt-2 text-2xl font-bold text-slate-900">
+                  {formatSol(treasury.currentPrizePoolSol)} SOL
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm text-slate-500">Reserve balance</div>
+                <div className="mt-2 text-2xl font-bold text-slate-900">
+                  {formatSol(treasury.reserveBalanceSol)} SOL
+                </div>
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm text-slate-500">Treasury wallet</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {treasury.treasuryWallet ? shortenAddress(treasury.treasuryWallet, 6, 6) : "Preparing"}
+                </div>
+                {treasury.treasuryBalanceSol !== null ? (
+                  <div className="mt-2 text-xs text-slate-500">Balance {formatSol(treasury.treasuryBalanceSol)} SOL</div>
+                ) : null}
+              </div>
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="text-sm text-slate-500">Next payout window</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">
+                  {treasury.nextPayoutDate
+                    ? new Date(treasury.nextPayoutDate).toLocaleString("en-US", { timeZone: "Asia/Seoul" })
+                    : "Pending approval"}
+                </div>
+                <div className="mt-2 text-xs text-slate-500">
+                  Current batch: {treasury.currentPayoutBatchStatus ?? treasury.lastPayoutStatus ?? "Not scheduled"}
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card className="p-6">
             <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">Community rules</div>
             <div className="mt-5 space-y-3 text-sm leading-6 text-slate-600">

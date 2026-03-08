@@ -6,6 +6,7 @@ import type {
   EpochSummary,
   LeaderboardEntry,
   PnlPoint,
+  TreasurySummary,
   TokenData
 } from "@/types";
 import { DEFAULT_PARTNER_CONFIG_PDA } from "@/lib/constants";
@@ -18,8 +19,13 @@ export const mockActiveEpoch: EpochSummary = {
   weekStart: "2026-03-02T00:00:00.000Z",
   weekEnd: "2026-03-09T23:59:59.000Z",
   totalFeesSol: 14.267,
+  grossFeesClaimedSol: 14.267,
   operatingCostsSol: 1.42,
-  prizePoolSol: 12.847,
+  prizePoolSol: 9.987,
+  operatorRevenueSol: 2.8534,
+  reserveSol: 1.4267,
+  netDistributableSol: 12.8404,
+  reserveBalanceAfterEpoch: 3.1981,
   status: "active"
 };
 
@@ -30,12 +36,27 @@ export const mockEpochs: EpochSummary[] = [
     weekStart: "2026-02-24T00:00:00.000Z",
     weekEnd: "2026-03-01T23:59:59.000Z",
     totalFeesSol: 11.14,
+    grossFeesClaimedSol: 11.14,
     operatingCostsSol: 1.1,
-    prizePoolSol: 10.04,
+    prizePoolSol: 7.798,
+    operatorRevenueSol: 2.228,
+    reserveSol: 1.114,
+    netDistributableSol: 10.026,
+    reserveBalanceAfterEpoch: 1.7714,
     status: "completed"
   },
   mockActiveEpoch
 ];
+
+export const mockTreasurySummary: TreasurySummary = {
+  treasuryWallet: "TrEa5uRy1111111111111111111111111111111111",
+  treasuryBalanceSol: 16.482,
+  currentPrizePoolSol: mockActiveEpoch.prizePoolSol,
+  reserveBalanceSol: mockActiveEpoch.reserveBalanceAfterEpoch,
+  nextPayoutDate: "2026-03-10T01:05:00.000Z",
+  lastPayoutStatus: "pending_approval",
+  currentPayoutBatchStatus: "pending_approval"
+};
 
 export const mockLeaderboard: LeaderboardEntry[] = [
   {
@@ -335,4 +356,3 @@ export const mockStats = {
   volumeSol: 189420,
   partnerConfigPda: DEFAULT_PARTNER_CONFIG_PDA
 };
-

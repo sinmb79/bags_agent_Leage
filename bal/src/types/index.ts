@@ -4,6 +4,22 @@ export type TelegramFeedbackSource = "bot_dm" | "group_redirect";
 export type TelegramFeedbackCategory = "bug" | "idea" | "question" | "report" | "other";
 export type TelegramFeedbackStatus = "new" | "acknowledged" | "closed";
 export type TelegramBotState = "idle" | "awaiting_category" | "awaiting_message";
+export type PayoutBatchStatus =
+  | "pending_approval"
+  | "approved"
+  | "held"
+  | "cancelled"
+  | "executing"
+  | "completed"
+  | "partial_failure";
+export type PayoutItemType = "operator_revenue" | "prize_payout";
+export type PayoutItemStatus = "pending" | "processing" | "completed" | "failed" | "cancelled";
+export type TreasuryLedgerEntryType =
+  | "fee_claim"
+  | "operator_allocation"
+  | "reserve_allocation"
+  | "prize_payout"
+  | "payout_reversal";
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -17,8 +33,13 @@ export interface EpochSummary {
   weekStart: string;
   weekEnd: string;
   totalFeesSol: number;
+  grossFeesClaimedSol: number;
   operatingCostsSol: number;
   prizePoolSol: number;
+  operatorRevenueSol: number;
+  reserveSol: number;
+  netDistributableSol: number;
+  reserveBalanceAfterEpoch: number;
   status: EpochStatus;
 }
 
@@ -129,4 +150,14 @@ export interface TelegramFaqEntry {
   slug: string;
   question: string;
   answer: string;
+}
+
+export interface TreasurySummary {
+  treasuryWallet: string | null;
+  treasuryBalanceSol: number | null;
+  currentPrizePoolSol: number;
+  reserveBalanceSol: number;
+  nextPayoutDate: string | null;
+  lastPayoutStatus: PayoutBatchStatus | null;
+  currentPayoutBatchStatus: PayoutBatchStatus | null;
 }

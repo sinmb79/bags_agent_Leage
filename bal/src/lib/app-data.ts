@@ -1,4 +1,5 @@
 import type { AgentInsert } from "@/lib/supabase/types";
+import { getTreasurySummary as getTreasurySummaryData } from "@/lib/settlement";
 import { createServerClient } from "@/lib/supabase/server";
 import {
   createAgent,
@@ -19,6 +20,7 @@ import {
   mockLeaderboard,
   mockProfiles,
   mockStats,
+  mockTreasurySummary,
   mockTokens
 } from "@/lib/mock-data";
 import type {
@@ -26,6 +28,7 @@ import type {
   AgentSummary,
   EpochSummary,
   LeaderboardEntry,
+  TreasurySummary,
   TokenData
 } from "@/types";
 
@@ -41,8 +44,13 @@ function toEpochSummary(row: {
   week_start: string;
   week_end: string;
   total_fees_sol: number;
+  gross_fees_claimed_sol: number;
   operating_costs_sol: number;
   prize_pool_sol: number;
+  operator_revenue_sol: number;
+  reserve_sol: number;
+  net_distributable_sol: number;
+  reserve_balance_after_epoch: number;
   status: "active" | "calculating" | "completed";
 }): EpochSummary {
   return {
@@ -51,8 +59,13 @@ function toEpochSummary(row: {
     weekStart: row.week_start,
     weekEnd: row.week_end,
     totalFeesSol: Number(row.total_fees_sol ?? 0),
+    grossFeesClaimedSol: Number(row.gross_fees_claimed_sol ?? 0),
     operatingCostsSol: Number(row.operating_costs_sol ?? 0),
     prizePoolSol: Number(row.prize_pool_sol ?? 0),
+    operatorRevenueSol: Number(row.operator_revenue_sol ?? 0),
+    reserveSol: Number(row.reserve_sol ?? 0),
+    netDistributableSol: Number(row.net_distributable_sol ?? 0),
+    reserveBalanceAfterEpoch: Number(row.reserve_balance_after_epoch ?? 0),
     status: row.status
   };
 }
@@ -265,12 +278,27 @@ export async function getTokenMarket(): Promise<TokenData[]> {
   return mockTokens;
 }
 
+export async function getTreasurySummary(): Promise<TreasurySummary> {
+  const supabase = createServerClient();
+  if (!supabase) {
+    return mockTreasurySummary;
+  }
+
+  try {
+    return await getTreasurySummaryData(supabase);
+  } catch (error) {
+    console.error("getTreasurySummary failed", error);
+    return mockTreasurySummary;
+  }
+}
+
 export async function getHomeData() {
-  const [epoch, leaderboard, agents, tokens] = await Promise.all([
+  const [epoch, leaderboard, agents, tokens, treasury] = await Promise.all([
     getCurrentEpoch(),
     getLeaderboard(),
     getAgentSummaries(),
-    getTokenMarket()
+    getTokenMarket(),
+    getTreasurySummary()
   ]);
 
   return {
@@ -279,6 +307,7 @@ export async function getHomeData() {
     topThree: leaderboard.slice(0, 3),
     trendingAgents: agents.slice(0, 6),
     tokens: tokens.slice(0, 6),
+    treasury,
     stats: mockStats
   };
 }
