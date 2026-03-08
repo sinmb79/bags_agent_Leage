@@ -57,4 +57,5 @@ Agent runtime -> Bags/Jupiter trades -> Solana
 ## Links
 
 - API docs: `./docs/API.md`
+- Next steps (KO): `./docs/NEXT_STEPS_KO.md`
 - Project references: `../files/TASKS.md`
